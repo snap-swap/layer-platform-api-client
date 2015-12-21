@@ -76,7 +76,7 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
     case x => deserializationError("Expected WebhookPayload as JsObject, but got " + x)
   }
 
-  implicit val webhookMessagePayloadReader: JsonReader[WebhookMessagePayload] = new RootJsonReader[WebhookMessagePayload] {
+  private implicit val webhookMessagePayloadReader: JsonReader[WebhookMessagePayload] = new RootJsonReader[WebhookMessagePayload] {
     override def read(json: JsValue) = {
       val tup = readPayload(json)
       json.asJsObject.fields.get("message") match {
@@ -88,7 +88,7 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
     }
   }
 
-  implicit def webhookConversationPayloadReader[M <: ConversationMetadata](implicit metadataReader: JsonReader[M]): JsonReader[WebhookConversationPayload[M]] =
+  private implicit def webhookConversationPayloadReader[M <: ConversationMetadata](implicit metadataReader: JsonReader[M]): JsonReader[WebhookConversationPayload[M]] =
     new RootJsonReader[WebhookConversationPayload[M]] {
       override def read(json: JsValue) = {
         val tup = readPayload(json)
