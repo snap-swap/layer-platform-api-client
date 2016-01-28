@@ -27,7 +27,7 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
     }
   }
 
-  private[layer] implicit val webhookFormat: JsonReader[Webhook] = new RootJsonReader[Webhook] {
+  private[layer] implicit val webhookFormat = new RootJsonReader[Webhook] {
     override def read(json: JsValue) = json match {
       case obj: JsObject =>
         (obj.fields.get("id"), obj.fields.get("target_url"), obj.fields.get("event_types"), obj.fields.get("status"), obj.fields.get("created_at"), obj.fields.get("target_config")) match {
@@ -76,7 +76,7 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
     case x => deserializationError("Expected WebhookPayload as JsObject, but got " + x)
   }
 
-  private implicit val webhookMessagePayloadReader: JsonReader[WebhookMessagePayload] = new RootJsonReader[WebhookMessagePayload] {
+  private implicit val webhookMessagePayloadReader = new RootJsonReader[WebhookMessagePayload] {
     override def read(json: JsValue) = {
       val tup = readPayload(json)
       json.asJsObject.fields.get("message") match {
@@ -88,7 +88,7 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
     }
   }
 
-  private implicit def webhookConversationPayloadReader[M <: ConversationMetadata](implicit metadataReader: JsonReader[M]): JsonReader[WebhookConversationPayload[M]] =
+  private implicit def webhookConversationPayloadReader[M <: ConversationMetadata](implicit metadataReader: JsonReader[M]) =
     new RootJsonReader[WebhookConversationPayload[M]] {
       override def read(json: JsValue) = {
         val tup = readPayload(json)
@@ -101,7 +101,7 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
       }
     }
 
-  implicit def webhookPayloadReader[M <: ConversationMetadata](implicit metadataReader: JsonReader[M]): JsonReader[WebhookPayload] =
+  implicit def webhookPayloadReader[M <: ConversationMetadata](implicit metadataReader: JsonReader[M]) =
     new RootJsonReader[WebhookPayload] {
       override def read(json: JsValue) = json match {
         case obj: JsObject => (obj.fields.get("message"), obj.fields.get("conversation")) match {
