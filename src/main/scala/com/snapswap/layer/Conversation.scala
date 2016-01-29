@@ -10,8 +10,11 @@ case class ConversationId(uuid: UUID) extends LayerId {
 }
 
 object ConversationId {
+
   private[layer] val idPrefix = "layer:///conversations/"
   private[layer] val urlPrefix = "https://api.layer.com/conversations/"
+
+  def apply(str: String): ConversationId = ConversationId(UUID.fromString(str.split('/').last))
 }
 
 trait ConversationMetadata {

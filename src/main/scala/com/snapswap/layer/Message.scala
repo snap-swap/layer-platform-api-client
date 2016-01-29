@@ -9,9 +9,12 @@ case class MessageId(uuid: UUID) extends LayerId {
   override def toString = uuid.toString
 }
 
-private[layer] object MessageId {
+object MessageId {
+
   private[layer] val idPrefix = "layer:///messages/"
   private[layer] val urlPrefix = "https://api.layer.com/messages/"
+
+  def apply(str: String): MessageId = MessageId(UUID.fromString(str.split('/').last))
 }
 
 trait MessagePart {
