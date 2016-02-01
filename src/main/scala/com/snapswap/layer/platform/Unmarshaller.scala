@@ -37,22 +37,26 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
   }
 
   private[layer] case class PatchMetadata(operation: String, property: String, value: Option[String], values: Option[Array[String]]) {
-    require(value.isDefined || values.isDefined)
+    require(value.isDefined || values.isDefined || operation == DeleteValue.operation, s"For '$operation' operation either 'value' or 'values' must be specified")
   }
   private[layer] object AddValue {
-    def apply(property: String, value: String): Seq[PatchMetadata] = Seq(PatchMetadata("add", property, Some(value), None))
+    val operation = "add"
+    def apply(property: String, value: String): Seq[PatchMetadata] = Seq(PatchMetadata(operation, property, Some(value), None))
   }
   private[layer] object RemoveValue {
-    def apply(property: String, value: String): Seq[PatchMetadata] = Seq(PatchMetadata("remove", property, Some(value), None))
+    val operation = "remove"
+    def apply(property: String, value: String): Seq[PatchMetadata] = Seq(PatchMetadata(operation, property, Some(value), None))
   }
   private[layer] object SetValue {
-    def apply(property: String, value: String): Seq[PatchMetadata] = Seq(PatchMetadata("set", property, Some(value), None))
+    val operation = "set"
+    def apply(property: String, value: String): Seq[PatchMetadata] = Seq(PatchMetadata(operation, property, Some(value), None))
   }
   private[layer] object DeleteValue {
-    def apply(property: String): Seq[PatchMetadata] = Seq(PatchMetadata("delete", property, None, None))
+    val operation = "delete"
+    def apply(property: String): Seq[PatchMetadata] = Seq(PatchMetadata(operation, property, None, None))
   }
   private[layer] object SetValues {
-    def apply(property: String, value: Array[String]): Seq[PatchMetadata] = Seq(PatchMetadata("set", property, None, Some(value)))
+    def apply(property: String, value: Array[String]): Seq[PatchMetadata] = Seq(PatchMetadata(SetValue.operation, property, None, Some(value)))
   }
 
   private case class RawPatchNoValue(operation: String, property: String)
