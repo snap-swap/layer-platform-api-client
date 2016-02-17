@@ -17,42 +17,57 @@ import com.snapswap.layer.webhooks.{EnumEventType, Webhook, WebhookId}
 
 trait LayerClient {
   def getConversation[M <: ConversationMetadata](id: ConversationId)(implicit metadataReader: JsonReader[M]): Future[Conversation[M]]
+
   def getOrCreateConversation[M <: ConversationMetadata](participants: Set[String], metadata: M)(implicit metadataFormat: JsonFormat[M]): Future[Conversation[M]]
+
   def createConversation[M <: ConversationMetadata](participants: Set[String], metadata: M)(implicit metadataFormat: JsonFormat[M]): Future[Conversation[M]]
+
   def setConversationProperty(id: ConversationId, property: String, value: String): Future[Unit]
+
   def deleteConversationProperty(id: ConversationId, property: String): Future[Unit]
+
   def addConversationParticipant(id: ConversationId, participant: String): Future[Unit]
+
   def removeConversationParticipant(id: ConversationId, participant: String): Future[Unit]
+
   def setConversationParticipants(id: ConversationId, participants: Set[String]): Future[Unit]
+
   def deleteConversation(id: ConversationId): Future[Unit]
+
   def sendMessage(id: ConversationId, sender: Sender, parts: Seq[MessagePart], notification: Notification): Future[Message]
+
   def sendAnnouncementTo(recipients: Set[String], senderName: String, parts: Seq[MessagePart], notification: Notification): Future[Announcement]
+
   def sendAnnouncementToEveryone(senderName: String, parts: Seq[MessagePart], notification: Notification): Future[Announcement] =
     sendAnnouncementTo(Set("everyone"), senderName, parts, notification)
+
   def createWebhook(targetUrl: String, eventTypes: Set[EnumEventType.EventType], secret: String, targetConfig: Map[String, String] = Map()): Future[Webhook]
+
   def listWebhooks(): Future[Seq[Webhook]]
+
   def getWebhook(id: WebhookId): Future[Webhook]
+
   def activateWebhook(id: WebhookId): Future[Webhook]
+
   def deactivateWebhook(id: WebhookId): Future[Webhook]
+
   def deleteWebhook(id: WebhookId): Future[Unit]
 }
 
 class AkkaHttpLayerClient(application: String, token: String)(implicit system: ActorSystem, materializer: Materializer) extends LayerClient {
-
-//  implicit val materializer: Materializer = ActorMaterializer()
 
   import system.dispatcher
 
   private val log = Logging(system, this.getClass)
   private val baseURL = s"/apps/$application"
 
-  private val `application/vnd.layer+json` = MediaType.custom(
-    "application", "vnd.layer+json", MediaType.Encoding.Fixed(HttpCharsets.`UTF-8`), params = Map("version" -> "1.0"))
-  private val `application/vnd.layer-patch+json` = MediaType.custom(
-    "application", "vnd.layer-patch+json", MediaType.Encoding.Fixed(HttpCharsets.`UTF-8`))
+  private val `application/vnd.layer+json` = MediaType.customWithFixedCharset(
+    "application", "vnd.layer+json", HttpCharsets.`UTF-8`, params = Map("version" -> "1.0"))
+  private val `application/vnd.layer-patch+json` = MediaType.customWithFixedCharset(
+    "application", "vnd.layer-patch+json", HttpCharsets.`UTF-8`)
 
   private lazy val layerConnectionFlow: Flow[HttpRequest, HttpResponse, Any] =
-    Http().outgoingConnectionTls("api.layer.com", 443).log("layer")
+    Http().outgoingConnectionHttps("api.layer.com", 443).log("layer")
 
   private def http(request: HttpRequest): Future[HttpResponse] =
     Source.single(
@@ -93,7 +108,6 @@ class AkkaHttpLayerClient(application: String, token: String)(implicit system: A
   private def get(path: String): HttpRequest = Get(baseURL + path)
 
   private def delete(path: String): HttpRequest = Delete(baseURL + path)
-
 
 
   override def getConversation[M <: ConversationMetadata](id: ConversationId)
