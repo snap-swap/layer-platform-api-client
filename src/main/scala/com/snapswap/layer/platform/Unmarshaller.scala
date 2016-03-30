@@ -98,4 +98,5 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
     }
   }
 
+  implicit val userIdFormat = jsonFormat(UserId, "user_id")
 }
