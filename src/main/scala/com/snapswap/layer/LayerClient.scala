@@ -6,7 +6,9 @@ import spray.json._
 import scala.concurrent.Future
 
 trait LayerClient {
-  def getConversation[M <: ConversationMetadata](id: ConversationId)(implicit metadataReader: JsonReader[M]): Future[Conversation[M]]
+  def getConversation[M <: ConversationMetadata](id: ConversationId, participant: Option[String] = None)(implicit metadataReader: JsonReader[M]): Future[Conversation[M]]
+
+  def getMessages(id: ConversationId, participant: Option[String] = None): Future[Seq[Message]]
 
   def getOrCreateConversation[M <: ConversationMetadata](participants: Set[String], metadata: M)(implicit metadataFormat: JsonFormat[M]): Future[Conversation[M]]
 

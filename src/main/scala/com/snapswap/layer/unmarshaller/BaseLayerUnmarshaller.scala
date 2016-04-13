@@ -137,6 +137,13 @@ trait BaseLayerUnmarshaller extends DefaultJsonProtocol {
     }
   }
 
+  implicit val messagesReader = new RootJsonReader[Seq[Message]] {
+    override def read(json: JsValue) = json match {
+      case JsArray(elements) => Seq(elements.map(el => messageReader.read(el)) :_*)
+      case x => deserializationError("Expected Collection as JsArray, but got " + x)
+    }
+  }
+
   implicit def conversationReader[M <: ConversationMetadata](implicit metadataReader: JsonReader[M]) =
     new RootJsonReader[Conversation[M]] {
       override def read(json: JsValue) = json match {

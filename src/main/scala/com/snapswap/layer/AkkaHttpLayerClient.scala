@@ -14,7 +14,6 @@ import akka.http.scaladsl.model.headers.{Accept, OAuth2BearerToken, Authorizatio
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import spray.json._
 import com.snapswap.layer.webhooks.{EnumEventType, Webhook, WebhookId}
-import scala.concurrent.Future
 
 class AkkaHttpLayerClient(application: String, token: String)(implicit system: ActorSystem, materializer: Materializer) extends LayerClient {
 
@@ -24,7 +23,7 @@ class AkkaHttpLayerClient(application: String, token: String)(implicit system: A
   private val baseURL = s"/apps/$application"
 
   private val `application/vnd.layer+json` = MediaType.customWithFixedCharset(
-    "application", "vnd.layer+json", HttpCharsets.`UTF-8`, params = Map("version" -> "1.0"))
+    "application", "vnd.layer+json", HttpCharsets.`UTF-8`, params = Map("version" -> "1.1"))
   private val `application/vnd.layer-patch+json` = MediaType.customWithFixedCharset(
     "application", "vnd.layer-patch+json", HttpCharsets.`UTF-8`)
 
@@ -72,12 +71,25 @@ class AkkaHttpLayerClient(application: String, token: String)(implicit system: A
   private def delete(path: String): HttpRequest = Delete(baseURL + path)
 
 
-  override def getConversation[M <: ConversationMetadata](id: ConversationId)
+  override def getConversation[M <: ConversationMetadata](id: ConversationId, participant: Option[String])
                                                          (implicit metadataReader: JsonReader[M]): Future[Conversation[M]] = {
-    send(get(s"/conversations/${id.uuid}")) { response =>
+    send(get(conversationPath(id, participant))) { response =>
       response.parseJson.convertTo[Conversation[M]](unmarshaller.platform.conversationReader)
     }
   }
+
+  override def getMessages(id: ConversationId, participant: Option[String]): Future[Seq[Message]] = {
+    import unmarshaller.platform.messagesReader
+    send(get(conversationPath(id, participant) + "/messages")) { response =>
+      response.parseJson.convertTo[Seq[Message]]
+    }
+  }
+
+  private def conversationPath(id: ConversationId, participant: Option[String]): String =
+    participant match {
+      case Some(user) => s"/users/$user/conversations/${id.uuid}"
+      case None => s"/conversations/${id.uuid}"
+    }
 
   override def getOrCreateConversation[M <: ConversationMetadata](participants: Set[String], metadata: M)
                                                                  (implicit metadataFormat: JsonFormat[M]): Future[Conversation[M]] = {
