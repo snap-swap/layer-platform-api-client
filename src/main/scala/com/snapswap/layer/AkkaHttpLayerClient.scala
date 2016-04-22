@@ -191,19 +191,19 @@ class AkkaHttpLayerClient(application: String, token: String)(implicit system: A
 
   override def blockCustomer(ownerUserId: String, userId: String): Future[Unit] = {
     import unmarshaller.platform.userIdFormat
-    send(post(s"users/$ownerUserId/blocks", UserId(userId).toJson)) { _ =>
+    send(post(s"/users/$ownerUserId/blocks", UserId(userId).toJson)) { _ =>
     }
   }
 
   override def unBlockCustomer(ownerUserId: String, userId: String): Future[Unit] = {
-    send(delete(s"users/$ownerUserId/blocks/$userId")) { _ =>
+    send(delete(s"/users/$ownerUserId/blocks/$userId")) { _ =>
     }
   }
 
   override def listBlocked(ownerUserId: String): Future[Seq[String]] = {
     import unmarshaller.platform.userIdFormat
     import spray.json.DefaultJsonProtocol._
-    
+
     send(get(s"/users/$ownerUserId/blocks")) { response =>
       response.parseJson.convertTo[Seq[UserId]].map(_.value)
     }
