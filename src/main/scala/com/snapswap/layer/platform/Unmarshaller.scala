@@ -10,7 +10,7 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
   implicit val notificationFormat: JsonFormat[Notification] = jsonFormat3(Notification)
 
   private[layer] implicit def createConversationWriter[M <: ConversationMetadata](implicit metadataWriter: JsonWriter[M])
-    = new RootJsonWriter[(Set[String], M, Boolean)] {
+  = new RootJsonWriter[(Set[String], M, Boolean)] {
     override def write(tup: (Set[String], M, Boolean)) = {
       val participants: Set[String] = tup._1
       val metadata: M = tup._2
@@ -36,31 +36,57 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
     }
   }
 
+  private[layer] implicit val sendAnnouncementWriter = new RootJsonWriter[(Sender, Seq[MessagePart], Notification, Set[String])] {
+    override def write(tup: (Sender, Seq[MessagePart], Notification, Set[String])) = {
+      val sender: Sender = tup._1
+      val parts: Seq[MessagePart] = tup._2
+      val notification: Notification = tup._3
+      val recipients: Set[String] = tup._4
+      JsObject(Map(
+        "sender" -> sender.toJson,
+        "parts" -> parts.toJson,
+        "notification" -> notification.toJson,
+        "recipients" -> recipients.toJson
+      ))
+    }
+  }
+
   private[layer] case class PatchMetadata(operation: String, property: String, value: Option[String], values: Option[Array[String]]) {
     require(value.isDefined || values.isDefined || operation == DeleteValue.operation, s"For '$operation' operation either 'value' or 'values' must be specified")
   }
+
   private[layer] object AddValue {
     val operation = "add"
+
     def apply(property: String, value: String): Seq[PatchMetadata] = Seq(PatchMetadata(operation, property, Some(value), None))
   }
+
   private[layer] object RemoveValue {
     val operation = "remove"
+
     def apply(property: String, value: String): Seq[PatchMetadata] = Seq(PatchMetadata(operation, property, Some(value), None))
   }
+
   private[layer] object SetValue {
     val operation = "set"
+
     def apply(property: String, value: String): Seq[PatchMetadata] = Seq(PatchMetadata(operation, property, Some(value), None))
   }
+
   private[layer] object DeleteValue {
     val operation = "delete"
+
     def apply(property: String): Seq[PatchMetadata] = Seq(PatchMetadata(operation, property, None, None))
   }
+
   private[layer] object SetValues {
     def apply(property: String, value: Array[String]): Seq[PatchMetadata] = Seq(PatchMetadata(SetValue.operation, property, None, Some(value)))
   }
 
   private case class RawPatchNoValue(operation: String, property: String)
+
   private case class RawPatchValue(operation: String, property: String, value: String)
+
   private case class RawPatchValues(operation: String, property: String, value: Array[String])
 
   private implicit val rawPatchNoValueFormat: JsonFormat[RawPatchNoValue] = jsonFormat2(RawPatchNoValue)
@@ -72,6 +98,7 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
       case (Some(v), _) => RawPatchValue(obj.operation, obj.property, v).toJson
       case (_, Some(v)) => RawPatchValues(obj.operation, obj.property, v).toJson
     }
+
     override def read(json: JsValue) = {
       def patchNoValue: PatchMetadata = {
         val raw = rawPatchNoValueFormat.read(json)

@@ -66,9 +66,3 @@ case class Message(
                     recipientStatus: Map[String, EnumRecipientStatus.RecipientStatus]
                   )
 
-case class Announcement(
-                         id: MessageId,
-                         parts: Seq[MessagePart],
-                         sentAt: DateTime,
-                         recipients: Set[String]
-                       )

@@ -145,7 +145,13 @@ class AkkaHttpLayerClient(application: String, token: String)(implicit system: A
     }
   }
 
-  override def sendAnnouncementTo(recipients: Set[String], senderName: String, parts: Seq[MessagePart], notification: Notification): Future[Announcement] = ???
+  override def sendAnnouncementTo(recipients: Set[String], senderName: String, parts: Seq[MessagePart], notification: Notification): Future[Announcement] = {
+    import unmarshaller.platform.{sendAnnouncementWriter, announcementReader}
+    val json = (Sender(id = None, name = Some(senderName)), parts, notification, recipients).toJson
+    send(post(s"/announcements", json)){response =>
+      response.parseJson.convertTo[Announcement]
+    }
+  }
 
   override def createWebhook(targetUrl: String, eventTypes: Set[EnumEventType.EventType], secret: String, targetConfig: Map[String, String] = Map()): Future[Webhook] = {
     require(eventTypes.nonEmpty)

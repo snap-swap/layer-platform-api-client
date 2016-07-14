@@ -14,11 +14,13 @@ trait BaseLayerUnmarshaller extends DefaultJsonProtocol {
       case JsString(s) => enum.withName(s)
       case x => deserializationError("Expected Enum as JsString, but got " + x)
     }
+
     def write(v: enum.Value) = JsString(v.toString)
   }
 
   protected implicit val uuidFormat: JsonFormat[UUID] = new RootJsonFormat[UUID] {
     override def write(obj: UUID) = JsString(obj.toString)
+
     override def read(json: JsValue) = json match {
       case JsString(str) => UUID.fromString(str)
       case x => deserializationError("Expected UUID as JsString, but got " + x)
@@ -34,6 +36,7 @@ trait BaseLayerUnmarshaller extends DefaultJsonProtocol {
       }
       case x => deserializationError("Expected 'id' as JsString, but got " + x)
     }
+
     override def write(obj: T) = JsObject(Map("id" -> JsString(obj.id), "url" -> JsString(obj.url)))
   }
 
@@ -51,21 +54,24 @@ trait BaseLayerUnmarshaller extends DefaultJsonProtocol {
   implicit val dateTimeFormat = new RootJsonFormat[DateTime] {
     private val dfPattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZZ"
     private val df = DateTimeFormat.forPattern(dfPattern).withZoneUTC()
+
     override def read(json: JsValue) = json match {
       case JsString(str) =>
-        val s = str//.stripSuffix("+00:00")
+        val s = str //.stripSuffix("+00:00")
         Try(df.parseDateTime(s)) match {
           case Success(dt) => dt
           case Failure(ex) => deserializationError(s"Expected DateTime as JsString in '$dfPattern' format, but got '$s'", cause = ex)
         }
       case x => deserializationError("Expected DateTime as JsString, but got " + x)
     }
+
     override def write(obj: DateTime) = JsString(df.print(obj))
   }
 
   protected case class ErrorData(property: Option[String]) {
     override def toString = property.map(p => s"property = $p: ").getOrElse("")
   }
+
   protected case class RawError(code: Int, id: String, message: String, data: Option[ErrorData])
 
   protected implicit val errorDataFormat = jsonFormat1(ErrorData)
@@ -79,6 +85,8 @@ trait BaseLayerUnmarshaller extends DefaultJsonProtocol {
   }
 
   protected implicit val messageIdFormat = idFormat[MessageId](idMaker(MessageId.idPrefix, MessageId.apply))
+
+  protected implicit val announcementIdFormat = idFormat[AnnouncementId](idMaker(AnnouncementId.idPrefix, AnnouncementId.apply))
 
   protected implicit val conversationIdFormat = idFormat[ConversationId](idMaker(ConversationId.idPrefix, ConversationId.apply))
 
@@ -139,8 +147,27 @@ trait BaseLayerUnmarshaller extends DefaultJsonProtocol {
 
   implicit val messagesReader = new RootJsonReader[Seq[Message]] {
     override def read(json: JsValue) = json match {
-      case JsArray(elements) => Seq(elements.map(el => messageReader.read(el)) :_*)
+      case JsArray(elements) => Seq(elements.map(el => messageReader.read(el)): _*)
       case x => deserializationError("Expected Collection as JsArray, but got " + x)
+    }
+  }
+
+  implicit val announcementReader = new RootJsonReader[Announcement] {
+    override def read(json: JsValue) = json match {
+      case obj: JsObject =>
+        (obj.fields.get("id"), obj.fields.get("parts"), obj.fields.get("sent_at"), obj.fields.get("sender"), obj.fields.get("recipients")) match {
+          case (Some(id), Some(parts: JsArray), Some(sentAt), Some(sender), Some(recipients)) =>
+            Announcement(
+              id.convertTo[AnnouncementId],
+              sender.convertTo[Sender],
+              parts.convertTo[Seq[MessagePart]],
+              sentAt.convertTo[DateTime],
+              recipients.convertTo[Set[String]]
+            )
+          case _ =>
+            deserializationError("Expected Announcement with mandatory 'id', 'parts', 'sent_at', 'sender', 'recipients' fields present, but got " + obj)
+        }
+      case x => deserializationError("Expected Announcement as JsObject, but got " + x)
     }
   }
 
