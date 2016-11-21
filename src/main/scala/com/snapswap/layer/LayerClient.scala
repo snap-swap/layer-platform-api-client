@@ -1,11 +1,13 @@
 package com.snapswap.layer
 
-import com.snapswap.layer.webhooks.{EnumEventType, Webhook, WebhookId}
-import spray.json._
-
 import scala.concurrent.Future
+import spray.json._
+import com.snapswap.layer.webhooks.{EnumEventType, Webhook, WebhookId}
 
 trait LayerClient {
+
+  def listConversations[M <: ConversationMetadata](participant: String)(implicit metadataReader: JsonReader[M]): Future[Seq[Conversation[M]]]
+
   def getConversation[M <: ConversationMetadata](id: ConversationId, participant: Option[String] = None)(implicit metadataReader: JsonReader[M]): Future[Conversation[M]]
 
   def getMessages(id: ConversationId, participant: Option[String] = None): Future[Seq[Message]]
@@ -26,7 +28,7 @@ trait LayerClient {
 
   def deleteConversation(id: ConversationId): Future[Unit]
 
-  def sendMessage(id: ConversationId, sender: Sender, parts: Seq[MessagePart], notification: Notification): Future[Message]
+  def sendMessage(id: ConversationId, sender: BasicIdentity, parts: Seq[MessagePart], notification: Notification): Future[Message]
 
   def sendAnnouncementTo(recipients: Set[String], senderName: String, parts: Seq[MessagePart], notification: Notification): Future[Announcement]
 
@@ -50,4 +52,8 @@ trait LayerClient {
   def unBlockCustomer(ownerUserId: String, userId: String): Future[Unit]
 
   def listBlocked(ownerUserId: String): Future[Seq[String]]
+
+  def getIdentity(userId: String): Future[Identity]
+
+  def updateDisplayName(userId: String, newDisplayName: String): Future[Unit]
 }

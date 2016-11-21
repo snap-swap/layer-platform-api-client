@@ -20,7 +20,7 @@ object AnnouncementId {
 
 case class Announcement(
                          id: AnnouncementId,
-                         sender: Sender,
+                         sender: BasicIdentity,
                          parts: Seq[MessagePart],
                          sentAt: DateTime,
                          recipients: Set[String]

@@ -30,7 +30,7 @@ class FakeLayerClient extends LayerClient {
 
   override def removeConversationParticipant(id: ConversationId, participant: String) = Future.failed(LayerServiceUnavailable("not implemented"))
 
-  override def sendMessage(id: ConversationId, sender: Sender, parts: Seq[MessagePart], notification: Notification) = Future.failed(LayerServiceUnavailable("not implemented"))
+  override def sendMessage(id: ConversationId, sender: BasicIdentity, parts: Seq[MessagePart], notification: Notification) = Future.failed(LayerServiceUnavailable("not implemented"))
 
   override def addConversationParticipant(id: ConversationId, participant: String) = Future.failed(LayerServiceUnavailable("not implemented"))
 
@@ -63,4 +63,10 @@ class FakeLayerClient extends LayerClient {
   override def unBlockCustomer(ownerUserId: String, userId: String) = Future.failed(LayerServiceUnavailable("not implemented"))
 
   override def listBlocked(ownerUserId: String) = Future.failed(LayerServiceUnavailable("not implemented"))
+
+  override def listConversations[M <: ConversationMetadata](participant: String)(implicit metadataReader: JsonReader[M]) = Future.failed(LayerServiceUnavailable("not implemented"))
+
+  override def getIdentity(userId: String): Future[Identity] = Future.failed(LayerServiceUnavailable("not implemented"))
+
+  override def updateDisplayName(userId: String, newDisplayName: String): Future[Unit] = Future.failed(LayerServiceUnavailable("not implemented"))
 }

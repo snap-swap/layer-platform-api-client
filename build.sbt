@@ -2,7 +2,7 @@ name := "layer-platform-api-client"
 
 organization  := "com.snapswap"
 
-version       := "1.0.2"
+version       := "1.0.3"
 
 scalaVersion  := "2.11.8"
 
@@ -24,16 +24,17 @@ scalacOptions := Seq(
   "UTF-8"
 )
 
-resolvers += "Akka Snapshot Repository" at "http://repo.akka.io/snapshots/"
+resolvers ++= Seq(
+  "SnapSwap repo" at "https://dev.snapswap.vc/artifactory/libs-release/",
+  "SnapSwap snapshot repo" at "https://dev.snapswap.vc/artifactory/libs-snapshot/"
+)
 
 libraryDependencies ++= {
-  val akkaV = "2.4.5"
+  val akkaV = "2.4.11"
   Seq(
-    "com.typesafe.akka" %% "akka-actor" % akkaV,
-    "com.typesafe.akka" %% "akka-http-core" % akkaV,
     "com.typesafe.akka" %% "akka-http-spray-json-experimental" % akkaV,
-    "joda-time" % "joda-time" % "2.9.3",
+    "joda-time" % "joda-time" % "2.9.4",
     "org.joda" % "joda-convert" % "1.8.1",
-    "org.scalatest" %% "scalatest" % "2.2.5" % "test"
+    "org.scalatest" %% "scalatest" % "3.0.0" % "test"
   )
 }

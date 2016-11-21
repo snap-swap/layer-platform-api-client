@@ -39,19 +39,6 @@ case class ContentMessagePart(mime: String) extends MessagePart {
   // TODO support rich content
 }
 
-case class Sender(private val id: Option[String], private val name: Option[String]) {
-  require(id.isEmpty || name.isEmpty, s"You can either specify sender.user_id '${id.get}' or sender.name '${name.get}', but not both")
-  override def toString = id.orElse(name).getOrElse("None")
-}
-
-object SenderId {
-  def apply(id: String): Sender = Sender(Some(id), None)
-}
-
-object SenderName {
-  def apply(name: String): Sender = Sender(None, Some(name))
-}
-
 object EnumRecipientStatus extends Enumeration {
   type RecipientStatus = Value
   val read, delivered, sent = Value
@@ -59,7 +46,7 @@ object EnumRecipientStatus extends Enumeration {
 
 case class Message(
                     id: MessageId,
-                    sender: Sender,
+                    sender: BasicIdentity,
                     parts: Seq[MessagePart],
                     sentAt: DateTime,
                     conversation: ConversationId,

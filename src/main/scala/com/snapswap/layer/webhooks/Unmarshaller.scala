@@ -27,10 +27,17 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
     }
   }
 
-  private[layer] implicit val webhookFormat = new RootJsonReader[Webhook] {
+  private[layer] implicit val webhooksReader = new RootJsonReader[Seq[Webhook]] {
+    override def read(json: JsValue) = json match {
+      case JsArray(elements) => Seq(elements.map(el => webhookReader.read(el)) :_*)
+      case x => deserializationError("Expected Collection as JsArray, but got " + x)
+    }
+  }
+
+  private[layer] implicit val webhookReader = new RootJsonReader[Webhook] {
     override def read(json: JsValue) = json match {
       case obj: JsObject =>
-        (obj.fields.get("id"), obj.fields.get("target_url"), obj.fields.get("event_types"), obj.fields.get("status"), obj.fields.get("created_at"), obj.fields.get("target_config")) match {
+        (obj.fields.get("id"), obj.fields.get("target_url"), obj.fields.get("events"), obj.fields.get("status"), obj.fields.get("created_at"), obj.fields.get("config")) match {
           case (Some(id), Some(targetUrl: JsString), Some(eventTypes: JsArray), Some(status), Some(createdAt), Some(targetConfig)) =>
             Webhook(
               id.convertTo[WebhookId],
@@ -41,7 +48,7 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
               targetConfig.convertTo[Map[String, String]]
             )
           case _ =>
-            deserializationError("Expected Webhook with mandatory 'id', 'target_url', 'event_types', 'status', 'created_at', 'target_config' fields present, but got " + obj)
+            deserializationError("Expected Webhook with mandatory 'id', 'target_url', 'events', 'status', 'created_at', 'config' fields present, but got " + obj)
         }
       case x => deserializationError("Expected Webhook as JsObject, but got " + x)
     }
@@ -64,14 +71,18 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
 
   private def readPayload(json: JsValue): (DateTime, EnumEventType.EventType, UUID, Map[String, String]) = json match {
     case obj: JsObject =>
-      (obj.fields.get("event_timestamp"), obj.fields.get("event_type"), obj.fields.get("event_id"), obj.fields.get("target_config")) match {
-        case (Some(timestamp), Some(eventType), Some(eventId), Some(targetConfig)) =>
-          (timestamp.convertTo[DateTime],
-            eventType.convertTo[EnumEventType.EventType],
-            eventId.convertTo[UUID],
-            targetConfig.convertTo[Map[String, String]])
+      (obj.fields.get("event"), obj.fields.get("config")) match {
+        case (Some(event: JsObject), Some(config: JsObject)) =>
+          (event.fields.get("created_at"), event.fields.get("type"), event.fields.get("id"), event.fields.get("actor")) match {
+            case (Some(timestamp), Some(eventType), Some(eventId), actor) => // TODO: handle actor
+              (timestamp.convertTo[DateTime],
+                eventType.convertTo[EnumEventType.EventType],
+                eventId.convertTo[UUID],
+                config.convertTo[Map[String, String]])
+            case _ => deserializationError("Expected WebhookPayload.event with mandatory 'created_at', 'type', 'id', 'actor' fields, but got " + obj)
+          }
         case _ =>
-          deserializationError("Expected WebhookPayload with mandatory 'event_timestamp', 'event_type', 'event_id', 'target_config' fields, but got " + obj)
+          deserializationError("Expected WebhookPayload with mandatory 'event', 'config' fields, but got " + obj)
       }
     case x => deserializationError("Expected WebhookPayload as JsObject, but got " + x)
   }

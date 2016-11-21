@@ -11,8 +11,8 @@ object EnumEventType extends Enumeration {
   val message_read = Value("message.read")
   val message_deleted = Value("message.deleted")
   val conversation_created = Value("conversation.created")
-  val conversation_participants_updated = Value("conversation.participants_updated")
-  val conversation_metadata_updated = Value("conversation.metadata_updated")
+  val conversation_participants_updated = Value("conversation.updated.participants")
+  val conversation_metadata_updated = Value("conversation.updated.metadata")
   val conversation_deleted = Value("conversation.deleted")
 }
 

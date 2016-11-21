@@ -23,21 +23,23 @@ class AkkaHttpLayerClient(application: String, token: String)(implicit system: A
   private val baseURL = s"/apps/$application"
 
   private val `application/vnd.layer+json` = MediaType.customWithFixedCharset(
-    "application", "vnd.layer+json", HttpCharsets.`UTF-8`, params = Map("version" -> "1.1"))
+    "application", "vnd.layer+json", HttpCharsets.`UTF-8`, params = Map("version" -> "2.0"))
   private val `application/vnd.layer-patch+json` = MediaType.customWithFixedCharset(
     "application", "vnd.layer-patch+json", HttpCharsets.`UTF-8`)
+  private val `application/vnd.layer.webhooks+json` = MediaType.customWithFixedCharset(
+    "application", "vnd.layer.webhooks+json", HttpCharsets.`UTF-8`, params = Map("version" -> "1.1"))
 
   private lazy val layerConnectionFlow: Flow[HttpRequest, HttpResponse, Any] =
     Http().outgoingConnectionHttps("api.layer.com", 443).log("layer")
 
-  private def http(request: HttpRequest): Future[HttpResponse] =
+  private def http(request: HttpRequest, accept: MediaType): Future[HttpResponse] =
     Source.single(
       request.addHeader(Authorization(OAuth2BearerToken(token)))
-        .addHeader(Accept(`application/vnd.layer+json`))
+        .addHeader(Accept(accept))
     ).via(layerConnectionFlow).runWith(Sink.head)
 
-  private def send[T](request: HttpRequest)(handler: String => T): Future[T] = {
-    http(request).flatMap { response =>
+  private def send[T](request: HttpRequest, accept: MediaType = `application/vnd.layer+json`)(handler: String => T): Future[T] = {
+    http(request, accept).flatMap { response =>
       Unmarshal(response.entity).to[String].map { asString =>
         if (response.status.isSuccess()) {
           log.debug(s"SUCCESS ${request.method} ${request.uri} -> ${response.status} '$asString'")
@@ -70,6 +72,19 @@ class AkkaHttpLayerClient(application: String, token: String)(implicit system: A
 
   private def delete(path: String): HttpRequest = Delete(baseURL + path)
 
+  private def put(path: String, json: JsValue): HttpRequest = {
+    val endpoint = baseURL + path
+    val content = json.compactPrint
+    log.info(s"Prepare request: PUT $endpoint with $content")
+    Put(endpoint)
+      .withEntity(HttpEntity(`application/json`, content))
+  }
+
+  override def listConversations[M <: ConversationMetadata](participant: String)(implicit metadataReader: JsonReader[M]): Future[Seq[Conversation[M]]] = {
+    send(get(s"/users/${participant.trim}/conversations")) { response =>
+      response.parseJson.convertTo[Seq[Conversation[M]]](unmarshaller.platform.conversationsReader)
+    }
+  }
 
   override def getConversation[M <: ConversationMetadata](id: ConversationId, participant: Option[String])
                                                          (implicit metadataReader: JsonReader[M]): Future[Conversation[M]] = {
@@ -87,7 +102,7 @@ class AkkaHttpLayerClient(application: String, token: String)(implicit system: A
 
   private def conversationPath(id: ConversationId, participant: Option[String]): String =
     participant match {
-      case Some(user) => s"/users/$user/conversations/${id.uuid}"
+      case Some(user) => s"/users/${user.trim}/conversations/${id.uuid}"
       case None => s"/conversations/${id.uuid}"
     }
 
@@ -137,7 +152,7 @@ class AkkaHttpLayerClient(application: String, token: String)(implicit system: A
     }
   }
 
-  override def sendMessage(id: ConversationId, sender: Sender, parts: Seq[MessagePart], notification: Notification): Future[Message] = {
+  override def sendMessage(id: ConversationId, sender: BasicIdentity, parts: Seq[MessagePart], notification: Notification): Future[Message] = {
     import unmarshaller.platform.{sendMessageWriter, messageReader}
     val json = (sender, parts, notification).toJson
     send(post(s"/conversations/${id.uuid}/messages", json)) { response =>
@@ -145,17 +160,11 @@ class AkkaHttpLayerClient(application: String, token: String)(implicit system: A
     }
   }
 
-  override def sendAnnouncementTo(recipients: Set[String], senderName: String, parts: Seq[MessagePart], notification: Notification): Future[Announcement] = {
-    import unmarshaller.platform.{sendAnnouncementWriter, announcementReader}
-    val json = (Sender(id = None, name = Some(senderName)), parts, notification, recipients).toJson
-    send(post(s"/announcements", json)){response =>
-      response.parseJson.convertTo[Announcement]
-    }
-  }
+  override def sendAnnouncementTo(recipients: Set[String], senderName: String, parts: Seq[MessagePart], notification: Notification): Future[Announcement] = ???
 
   override def createWebhook(targetUrl: String, eventTypes: Set[EnumEventType.EventType], secret: String, targetConfig: Map[String, String] = Map()): Future[Webhook] = {
     require(eventTypes.nonEmpty)
-    import unmarshaller.webhooks.{createWebhookWriter, webhookFormat}
+    import unmarshaller.webhooks.{createWebhookWriter, webhookReader}
     val json = (targetUrl, eventTypes, secret, targetConfig).toJson
     send(post(s"/webhooks", json)) { response =>
       response.parseJson.convertTo[Webhook]
@@ -163,55 +172,69 @@ class AkkaHttpLayerClient(application: String, token: String)(implicit system: A
   }
 
   override def listWebhooks(): Future[Seq[Webhook]] = {
-    import unmarshaller.webhooks.webhookFormat
-    send(get(s"/webhooks")) { response =>
-      response.parseJson.asInstanceOf[JsArray].elements.map(el => webhookFormat.read(el)).toSeq
+    import unmarshaller.webhooks.webhooksReader
+    send(get(s"/webhooks"), accept = `application/vnd.layer.webhooks+json`) { response =>
+      response.parseJson.convertTo[Seq[Webhook]]
     }
   }
 
   override def getWebhook(id: WebhookId): Future[Webhook] = {
-    import unmarshaller.webhooks.webhookFormat
-    send(get(s"/webhooks/${id.uuid}")) { response =>
+    import unmarshaller.webhooks.webhookReader
+    send(get(s"/webhooks/${id.uuid}"), accept = `application/vnd.layer.webhooks+json`) { response =>
       response.parseJson.convertTo[Webhook]
     }
   }
 
   override def activateWebhook(id: WebhookId): Future[Webhook] = {
-    import unmarshaller.webhooks.webhookFormat
-    send(post(s"/webhooks/${id.uuid}/activate", JsString(""))) { response =>
+    import unmarshaller.webhooks.webhookReader
+    send(post(s"/webhooks/${id.uuid}/activate", JsString("")), accept = `application/vnd.layer.webhooks+json`) { response =>
       response.parseJson.convertTo[Webhook]
     }
   }
 
   override def deactivateWebhook(id: WebhookId): Future[Webhook] = {
-    import unmarshaller.webhooks.webhookFormat
-    send(post(s"/webhooks/${id.uuid}/deactivate", JsString(""))) { response =>
+    import unmarshaller.webhooks.webhookReader
+    send(post(s"/webhooks/${id.uuid}/deactivate", JsString("")), accept = `application/vnd.layer.webhooks+json`) { response =>
       response.parseJson.convertTo[Webhook]
     }
   }
 
   override def deleteWebhook(id: WebhookId): Future[Unit] = {
-    send(delete(s"/webhooks/${id.uuid}")) { _ =>
+    send(delete(s"/webhooks/${id.uuid}"), accept = `application/vnd.layer.webhooks+json`) { _ =>
     }
   }
 
   override def blockCustomer(ownerUserId: String, userId: String): Future[Unit] = {
-    import unmarshaller.platform.userIdFormat
-    send(post(s"/users/$ownerUserId/blocks", UserId(userId).toJson)) { _ =>
+    import unmarshaller.platform.userFormat
+    send(post(s"users/$ownerUserId/blocks", UserId(userId).toJson)) { _ =>
     }
   }
 
   override def unBlockCustomer(ownerUserId: String, userId: String): Future[Unit] = {
-    send(delete(s"/users/$ownerUserId/blocks/$userId")) { _ =>
+    send(delete(s"users/$ownerUserId/blocks/$userId")) { _ =>
     }
   }
 
   override def listBlocked(ownerUserId: String): Future[Seq[String]] = {
-    import unmarshaller.platform.userIdFormat
-    import spray.json.DefaultJsonProtocol._
+    import unmarshaller.platform.usersReader
 
     send(get(s"/users/$ownerUserId/blocks")) { response =>
       response.parseJson.convertTo[Seq[UserId]].map(_.value)
+    }
+  }
+
+  override def getIdentity(userId: String): Future[Identity] = {
+    import unmarshaller.platform.identityFormat
+    send(get(s"/users/$userId/identity")) { response =>
+      println(response)
+      response.parseJson.convertTo[Identity]
+    }
+  }
+
+  override def updateDisplayName(userId: String, newDisplayName: String): Future[Unit] = {
+    import unmarshaller.platform.{patchFormat, seqFormat}
+    val changes = unmarshaller.platform.SetValue("display_name", newDisplayName).toJson
+    send(patch(s"/users/$userId/identity", changes)) { response =>
     }
   }
 }

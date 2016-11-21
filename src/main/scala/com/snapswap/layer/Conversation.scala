@@ -23,7 +23,7 @@ trait ConversationMetadata {
 case class Conversation[M <: ConversationMetadata](
                          id: ConversationId,
                          createdAt: DateTime,
-                         participants: Set[String],
+                         participants: Seq[BasicIdentity],
                          distinct: Boolean,
                          metadata: M
                        ) {
