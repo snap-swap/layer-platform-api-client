@@ -226,7 +226,6 @@ class AkkaHttpLayerClient(application: String, token: String)(implicit system: A
   override def getIdentity(userId: String): Future[Identity] = {
     import unmarshaller.platform.identityFormat
     send(get(s"/users/$userId/identity")) { response =>
-      println(response)
       response.parseJson.convertTo[Identity]
     }
   }
