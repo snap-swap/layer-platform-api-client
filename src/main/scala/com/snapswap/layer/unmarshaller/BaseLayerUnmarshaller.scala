@@ -37,7 +37,7 @@ trait BaseLayerUnmarshaller extends DefaultJsonProtocol {
     override def write(obj: T) = JsObject(Map("id" -> JsString(obj.id), "url" -> JsString(obj.url)))
   }
 
-  private def idMaker[T <: LayerId](idPrefix: String, maker: UUID => T): String => T = { str =>
+  protected def idMaker[T <: LayerId](idPrefix: String, maker: UUID => T): String => T = { str =>
     if (!str.startsWith(idPrefix)) {
       deserializationError(s"Expected 'id' with '$idPrefix' prefix, but got '$str'")
     } else Try(UUID.fromString(str.stripPrefix(idPrefix))) match {
@@ -46,9 +46,9 @@ trait BaseLayerUnmarshaller extends DefaultJsonProtocol {
     }
   }
 
-  implicit val enumRecipientStatusFormat = enumNameFormat(EnumRecipientStatus)
+  protected implicit val enumRecipientStatusFormat = enumNameFormat(EnumRecipientStatus)
 
-  implicit val dateTimeFormat = new RootJsonFormat[DateTime] {
+  protected implicit val dateTimeFormat = new RootJsonFormat[DateTime] {
     private val dfPattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZZ"
     private val df = DateTimeFormat.forPattern(dfPattern).withZoneUTC()
     override def read(json: JsValue) = json match {

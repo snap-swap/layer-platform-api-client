@@ -24,6 +24,8 @@ class AkkaHttpLayerClient(application: String, token: String)(implicit system: A
 
   private val `application/vnd.layer+json` = MediaType.customWithFixedCharset(
     "application", "vnd.layer+json", HttpCharsets.`UTF-8`, params = Map("version" -> "2.0"))
+  private val `application/vnd.layer+json;version=1.1` = MediaType.customWithFixedCharset(
+    "application", "vnd.layer+json", HttpCharsets.`UTF-8`, params = Map("version" -> "1.1"))
   private val `application/vnd.layer-patch+json` = MediaType.customWithFixedCharset(
     "application", "vnd.layer-patch+json", HttpCharsets.`UTF-8`)
   private val `application/vnd.layer.webhooks+json` = MediaType.customWithFixedCharset(
@@ -160,7 +162,19 @@ class AkkaHttpLayerClient(application: String, token: String)(implicit system: A
     }
   }
 
-  override def sendAnnouncementTo(recipients: Set[String], senderName: String, parts: Seq[MessagePart], notification: Notification): Future[Announcement] = ???
+  // TODO: current Announcement implementation utilizes older Layer API - v1.1 - due to the fact that newer version requires to specify 'user_id' of a sender
+  override def sendAnnouncementTo(recipients: Set[String], senderName: String, parts: Seq[MessagePart], notification: Notification): Future[Announcement] = {
+    require(recipients.nonEmpty, "Recipients collection is expected to be not empty")
+    require(recipients.forall(_.trim.nonEmpty), s"Expected only non-empty user IDs in recipients collection: ${recipients.mkString("'", "', '", "'")}")
+    require(parts.nonEmpty, "Message parts collection is expected to be not empty")
+    require(senderName.trim.nonEmpty, "Expected non-empty sender name")
+    import unmarshaller.platform.{sendAnnouncementWriter, announcementReader}
+    val sender = SystemIdentity(senderName.trim)
+    val json = (recipients, sender, parts, notification).toJson
+    send(post(s"/announcements", json), accept = `application/vnd.layer+json;version=1.1`) { response =>
+      response.parseJson.convertTo[Announcement]
+    }
+  }
 
   override def createWebhook(targetUrl: String, eventTypes: Set[EnumEventType.EventType], secret: String, targetConfig: Map[String, String] = Map()): Future[Webhook] = {
     require(eventTypes.nonEmpty)

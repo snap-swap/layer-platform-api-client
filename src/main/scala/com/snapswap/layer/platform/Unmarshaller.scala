@@ -1,5 +1,6 @@
 package com.snapswap.layer.platform
 
+import org.joda.time.DateTime
 import spray.json._
 import com.snapswap.layer._
 import com.snapswap.layer.unmarshaller.BaseLayerUnmarshaller
@@ -26,12 +27,29 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
   private[layer] implicit val sendMessageWriter = new RootJsonWriter[(BasicIdentity, Seq[MessagePart], Notification)] {
     override def write(tup: (BasicIdentity, Seq[MessagePart], Notification)) = {
       val sender: BasicIdentity = tup._1
-      require(sender._id.isDefined, s"Message sender must contain a user ID")
+      require(sender._id.isDefined, s"Message sender must contain a user ID: $sender")
       val senderId: String = sender._id.get
       val parts: Seq[MessagePart] = tup._2
       val notification: Notification = tup._3
       JsObject(Map(
         "sender_id" -> JsString(senderId),
+        "notification" -> notification.toJson,
+        "parts" -> parts.toJson
+      ))
+    }
+  }
+
+  private[layer] implicit val sendAnnouncementWriter = new RootJsonWriter[(Set[String], BasicIdentity, Seq[MessagePart], Notification)] {
+    override def write(tup: (Set[String], BasicIdentity, Seq[MessagePart], Notification)) = {
+      val recipients: Set[String] = tup._1
+      val sender: BasicIdentity = tup._2
+      require(sender.name.isDefined, s"Announcement sender must contain a name: $sender")
+      val senderName: String = sender.name.get
+      val parts: Seq[MessagePart] = tup._3
+      val notification: Notification = tup._4
+      JsObject(Map(
+        "recipients" -> recipients.toJson,
+        "sender" -> JsObject(Map("name" -> JsString(senderName))),
         "notification" -> notification.toJson,
         "parts" -> parts.toJson
       ))
@@ -110,4 +128,28 @@ trait Unmarshaller extends BaseLayerUnmarshaller {
 
   implicit val identityFormat = jsonFormat(Identity, "user_id", "display_name",
     "avatar_url", "first_name", "last_name", "phone_number", "email_address", "public_key")
+
+
+  implicit val announcementIdFormat = idFormat[AnnouncementId](idMaker(AnnouncementId.idPrefix, AnnouncementId.apply))
+  implicit val announcementReader = new RootJsonReader[Announcement] {
+    override def read(json: JsValue) = json match {
+      case obj: JsObject =>
+        (obj.fields.get("id"), obj.fields.get("sent_at"), obj.fields.get("recipients"), obj.fields.get("sender"), obj.fields.get("parts")) match {
+          case (Some(_id: JsString), Some(_sentAt), Some(_recipients), Some(_sender: JsObject), Some(_parts)) =>
+            val id = AnnouncementId(_id.value)
+            val sentAt = _sentAt.convertTo[DateTime]
+            val recipients = _recipients.convertTo[Seq[String]].toSet
+            val parts = _parts.convertTo[Seq[MessagePart]]
+            _sender.fields.get("name") match {
+              case Some(senderName: JsString) =>
+                val sender = SystemIdentity(senderName.value)
+                Announcement(id, sender, parts, sentAt, recipients)
+              case _ => deserializationError("Expected Announcement with mandatory 'sender.name' field present, but got " + obj)
+            }
+          case _ =>
+            deserializationError("Expected Announcement with mandatory 'id', 'sent_at', 'recipients', 'sender', 'parts' fields present, but got " + obj)
+        }
+      case x => deserializationError("Expected Announcement as JsObject, but got " + x)
+    }
+  }
 }

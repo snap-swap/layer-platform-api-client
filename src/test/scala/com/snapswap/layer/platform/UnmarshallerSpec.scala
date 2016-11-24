@@ -12,6 +12,7 @@ class UnmarshallerSpec extends FlatSpec with Matchers {
     implicit val myMetadataFormat = jsonFormat2(MyMetadata)
     implicit val myConversationReader: JsonReader[Conversation[MyMetadata]] = unmarshaller.platform.conversationReader(myMetadataFormat)
     implicit val myIdentityFormat: JsonFormat[Identity] = unmarshaller.platform.identityFormat
+    implicit val myAnnouncementReader: JsonReader[Announcement] = unmarshaller.platform.announcementReader
   }
 
   import MetadataFormat._
@@ -29,13 +30,13 @@ class UnmarshallerSpec extends FlatSpec with Matchers {
     result.displayName shouldBe Some("MyCoolNickname")
   }
 
-  /*it should "parse announcement" in {
+  it should "parse announcement" in {
     val result = announcement.parseJson.convertTo[Announcement]
-    result.id.toString shouldBe "f3cc7b32-3c92-11e4-baad-164230d1df67"
+    result.id.toString shouldBe "940de862-3c96-11e4-baad-164230d1df67"
     result.parts shouldBe Seq(PlainText(body = "Hello, World!"))
     result.recipients shouldBe Set("1234", "5678")
-    result.sender shouldBe Sender(id = None, name = Some("The System"))
-  } */
+    result.sender shouldBe BasicIdentity(id = None, name = Some("The System"))
+  }
 
   private val conversation =
     """{
@@ -103,14 +104,14 @@ class UnmarshallerSpec extends FlatSpec with Matchers {
       |    {
       |      "id": "layer:///announcements/940de862-3c96-11e4-baad-164230d1df67/parts/0",
       |      "mime_type": "text/plain",
-      |      "body": "This is the announcement."
+      |      "body": "Hello, World!"
       |    }
       |  ],
       |  "sent_at": "2014-09-09T04:44:47.000Z",
       |  "sender": {
       |    "user_id": null,
-      |    "name": "Admin"
+      |    "name": "The System"
       |  },
-      |  "recipients": ["layer:///identities/999", "layer:///identities/777"]
+      |  "recipients": ["1234", "5678"]
       |}""".stripMargin
 }
