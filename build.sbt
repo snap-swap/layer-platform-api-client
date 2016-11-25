@@ -2,7 +2,7 @@ name := "layer-platform-api-client"
 
 organization  := "com.snapswap"
 
-version       := "1.0.5"
+version       := "1.0.6"
 
 scalaVersion  := "2.11.8"
 
