@@ -7,8 +7,20 @@ import com.snapswap.layer.unmarshaller.BaseLayerUnmarshaller
 
 trait Unmarshaller extends BaseLayerUnmarshaller {
 
-  implicit val notificationDataFormat: JsonFormat[NotificationData] = jsonFormat2(NotificationData)
-  implicit val notificationFormat: JsonFormat[Notification] = jsonFormat3(Notification)
+  private case class RawNotificationCustomization(recipient: String, title: Option[String], text: Option[String], sound: Option[String])
+  private case class RawNotification(title: Option[String], text: Option[String], sound: Option[String], recipients: Seq[RawNotificationCustomization]) {
+    def toNotification = Notification(title, text, sound, recipients.map(c => c.recipient -> NotificationData(c.title, c.text, c.sound)).toMap)
+  }
+  private implicit val rawNotificationCustomizationFormat = jsonFormat4(RawNotificationCustomization)
+  private implicit val rawNotificationFormat = jsonFormat4(RawNotification)
+  implicit val notificationFormat: JsonFormat[Notification] = new RootJsonFormat[Notification] {
+    override def write(n: Notification) =
+      RawNotification(
+        n.title, n.text, n.sound,
+        n.recipients.map { case (r, c) => RawNotificationCustomization(r, c.title, c.text, c.sound)}.toSeq
+      ).toJson
+    override def read(json: JsValue) = json.convertTo[RawNotification].toNotification
+  }
 
   private[layer] implicit def createConversationWriter[M <: ConversationMetadata](implicit metadataWriter: JsonWriter[M])
     = new RootJsonWriter[(Set[String], M, Boolean)] {

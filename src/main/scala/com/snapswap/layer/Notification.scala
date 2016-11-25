@@ -1,18 +1,23 @@
 package com.snapswap.layer
 
-case class NotificationData(text: String, sound: Option[String] = None)
+case class NotificationData(title: Option[String], text: Option[String], sound: Option[String])
 
-case class Notification(text: String, sound: Option[String], recipients: Option[Map[String, NotificationData]])
+case class Notification(title: Option[String], text: Option[String], sound: Option[String], recipients: Map[String, NotificationData] = Map.empty)
 
 object TextNotification {
-  def apply(text: String): Notification = Notification(text, sound = None, recipients = None)
+  def apply(title: String, text: String): Notification =
+    Notification(title = Some(title), text = Some(text), sound = None)
+}
+
+object NoNotification {
+  def apply(): Notification =
+    Notification(None, None, None)
 }
 
 object CustomizedTextNotification {
-  def apply(text: String, textPerRecipient: Map[String, String]): Notification = {
-    val recipients: Option[Map[String, NotificationData]] = Some(
-      textPerRecipient.map { case (recipient, t) => recipient -> NotificationData(t)}
-    )
-    Notification(text, sound = None, recipients)
+  def apply(title: String, text: String, textPerRecipient: Map[String, String]): Notification = {
+    val recipients: Map[String, NotificationData] =
+      textPerRecipient.map { case (recipient, t) => recipient -> NotificationData(None, Some(t), None)}
+    Notification(title = Some(title), text = Some(text), sound = None, recipients)
   }
 }
