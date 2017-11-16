@@ -2,7 +2,7 @@ name := "layer-platform-api-client"
 
 organization  := "com.snapswap"
 
-version       := "1.0.6"
+version       := "1.0.7"
 
 scalaVersion  := "2.11.8"
 
@@ -30,9 +30,9 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= {
-  val akkaV = "2.4.11"
+  val akkaHttpV = "10.0.10"
   Seq(
-    "com.typesafe.akka" %% "akka-http-spray-json-experimental" % akkaV,
+    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "joda-time" % "joda-time" % "2.9.4",
     "org.joda" % "joda-convert" % "1.8.1",
     "org.scalatest" %% "scalatest" % "3.0.0" % "test"
